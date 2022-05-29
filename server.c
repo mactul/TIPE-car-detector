@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 
-typedef struct sensor_data {
+typedef struct sensor_data {  // this structure will contain unpacked client data
     int id;
     uint32_t state;
 } Sensor_data;
@@ -22,12 +22,16 @@ typedef struct sensor_data {
 
 void decode_datas(Sensor_data* poutput, uint32_t data)
 {
+    // data is structured as follows: [state: 1 bit][ID: 31 bits]
+    // this function will decode the data and put it in the structure
     poutput->id = (data & (~(0x1 << (8*sizeof(uint32_t) - 1))));
     poutput->state = (data >> (8*sizeof(uint32_t) - 1));
 }
 
 void* manage_sensor(void* pdata)
 {
+    // this function is called by a thread
+    // it will receive data from a client and save it in the database (not implemented)
     uint32_t data;
     int acc = (int) pdata;
     int n = 1;
@@ -43,6 +47,7 @@ void* manage_sensor(void* pdata)
             printf("ID: %d\nstate: %d\n", sdata.id, sdata.state);
         }
     }
+    // the connexion is closed
     close(acc);
     return NULL;
 }
@@ -61,7 +66,7 @@ int main()
     my_addr.sin_family = AF_INET;
     my_addr.sin_addr.s_addr = INADDR_ANY;
     
-    // This ip address will change according to the machine
+    // This ip address is the server ip address
     my_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
      
     my_addr.sin_port = htons(12000);
@@ -101,7 +106,8 @@ int main()
         // for finding port number of client
         printf("connection established with IP : %s and PORT : %d\n",
                                             ip, ntohs(peer_addr.sin_port));
- 
+
+        // create a thread to manage the client in a non blocking way
         pthread_create (&thread, NULL, *manage_sensor, (void*) acc);
     }
     return 0;
