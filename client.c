@@ -112,6 +112,9 @@ int main()
     
     
     wiringPiSetup();  // start listening to the ultrasonic sensor
+
+    pinMode(trigPin,OUTPUT);
+    pinMode(echoPin,INPUT);
     
     while(1)
     {
