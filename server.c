@@ -2,19 +2,12 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <string.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <string.h>
 #include <stdint.h>
 #include <pthread.h>
-#include <unistd.h>
-#include <mysql.h>
+#include <mysql/mysql.h>
 #include "bdd_credentials.h"
+#include "easy_tcp_tls.h"
 
 typedef struct sensor_data {  // this structure will contain unpacked client data
     int id;
@@ -50,74 +43,19 @@ void update_sensor(int sensor_ID, int state)
         finish_with_error(_bdd);
 }
 
-
-void* manage_sensor(void* pdata)
-{
-    // this function is called by a thread
-    // it will receive data from a client and save it in the database (not implemented)
-    uint32_t data;
-    int acc = (int) pdata;
-    int n = 1;
-    int last_state = -1;
-    Sensor_data sdata;
-
-    while(n > 0)
-    {
-        n = recv(acc, &data, sizeof(data), 0);
-        printf("cc");
-        if(n > 0)
-        {
-            decode_datas(&sdata, data);
-            if(last_state != sdata.state)
-            {
-                update_sensor(sdata.id, sdata.state);
-                last_state = sdata.state;
-                printf("%d\n", sdata.state);
-            }
-            printf("ID: %d\nstate: %d\n", sdata.id, sdata.state);
-        }
-    }
-    // the connexion is closed
-    close(acc);
-    return NULL;
-}
-
 int main()
 {
-    int server = socket(AF_INET, SOCK_STREAM, 0);
-    struct timeval tv;
-    
-    if (server < 0)
-        printf("Error in server creating\n");
-    else
-        printf("Server Created\n");
-         
-    struct sockaddr_in my_addr, peer_addr;
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_addr.s_addr = INADDR_ANY;
-    
-    // This ip address is the server ip address
-    my_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-     
-    my_addr.sin_port = htons(12000);
+    SocketHandler* server_handler;
 
-    tv.tv_sec = 60;
-    tv.tv_usec = 0;
-    setsockopt(server, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
- 
-    if (bind(server, (struct sockaddr*) &my_addr, sizeof(my_addr)) == 0)
-        printf("Binded Correctly\n");
-    else
-        printf("Unable to bind\n");
-         
-    if (listen(server, 3) == 0)
-        printf("Listening ...\n");
-    else
-        printf("Unable to listen\n");
-     
-    socklen_t addr_size;
-    addr_size = sizeof(struct sockaddr_in);
+    socket_start();
 
+    server_handler = socket_ssl_server_init("127.0.0.1", 12000, 1, "cert.pem", "key.pem");
+
+    if(server_handler == NULL)
+    {
+        socket_print_last_error();
+        return 1;
+    }
 
     _bdd = mysql_init(NULL);
     if (_bdd == NULL)
@@ -136,21 +74,33 @@ int main()
     // accept infinite connection one by one
     while (1)
     {
-        pthread_t thread;
-        int acc = accept(server, (struct sockaddr*) &peer_addr, &addr_size);
-        
-        
-        printf("Connection Established\n");
-        char ip[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &(peer_addr.sin_addr), ip, INET_ADDRSTRLEN);
-     
-        // "ntohs(peer_addr.sin_port)" function is
-        // for finding port number of client
-        printf("connection established with IP : %s and PORT : %d\n",
-                                            ip, ntohs(peer_addr.sin_port));
+        SocketHandler* client_handler;
+        ClientData infos;
 
-        // create a thread to manage the client in a non blocking way
-        pthread_create (&thread, NULL, *manage_sensor, (void*) acc);
+        client_handler = socket_accept(server_handler, &infos);
+
+        if(client_handler != NULL)
+        {
+            uint32_t data;
+            Sensor_data sdata;
+
+            printf("connection established with IP : %s and PORT : %d\n", infos.ip, infos.port);
+
+            socket_recv(client_handler, (char*)&data, sizeof(data), 0);
+
+            decode_datas(&sdata, data);
+            printf("id: %d, state: %d\n", sdata.id, sdata.state);
+            update_sensor(sdata.id, sdata.state);
+
+            socket_close(&client_handler);
+        }
+        else
+        {
+            socket_print_last_error();
+        }
     }
+
+    socket_cleanup();
+
     return 0;
 }
