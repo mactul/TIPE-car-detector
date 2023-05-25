@@ -5,8 +5,8 @@
 #include <unistd.h>
 #include "easy_tcp_tls.h"
 
-#define trigPin 4                 // this is the GPIO pin for the trigger of the ultrasonic sensor
-#define echoPin 5                 // this is the GPIO pin for the echo of the ultrasonic sensor
+#define TRIGPIN 4                 // this is the GPIO pin for the trigger of the ultrasonic sensor
+#define ECHOPIN 5                 // this is the GPIO pin for the echo of the ultrasonic sensor
 #define MAX_DISTANCE 220          // define the maximum measured distance
 #define timeOut MAX_DISTANCE*60   // define the timeout in microseconds
 
@@ -26,10 +26,10 @@ float getSonar()  // get the measurement result of ultrasonic module with unit: 
 {
     long pingTime;
     float distance;
-    digitalWrite(trigPin, HIGH); // send 10us high level to trigPin 
+    digitalWrite(TRIGPIN, HIGH); // send 10us high level to trigPin 
     delayMicroseconds(10);
-    digitalWrite(trigPin, LOW);
-    pingTime = pulseIn(echoPin, HIGH, timeOut);   // read plus time of echoPin
+    digitalWrite(TRIGPIN, LOW);
+    pingTime = pulseIn(ECHOPIN, HIGH, timeOut);   // read plus time of echoPin
     distance = (float)pingTime * 340.0 / 2.0 / 10000.0; // calculate distance with sound speed 340m/s
     return distance;
 }
@@ -83,8 +83,8 @@ int main()
     socket_start();
     wiringPiSetup();  // start listening to the ultrasonic sensor
 
-    pinMode(trigPin, OUTPUT);
-    pinMode(echoPin, INPUT);
+    pinMode(TRIGPIN, OUTPUT);
+    pinMode(ECHOPIN, INPUT);
     
     while(1)
     {
