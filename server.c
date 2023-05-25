@@ -9,13 +9,12 @@
 #include "bdd_credentials.h"
 #include "easy_tcp_tls.h"
 
+MYSQL* _bdd;
+
 typedef struct sensor_data {  // this structure will contain unpacked client data
     int id;
     uint32_t state;
 } Sensor_data;
-
-
-MYSQL* _bdd;
 
 void decode_datas(Sensor_data* poutput, uint32_t data)
 {
