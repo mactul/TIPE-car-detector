@@ -1,6 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
-#include "wiringPi.h"
+#include <wiringPi.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include "easy_tcp_tls.h"
